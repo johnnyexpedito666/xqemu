@@ -10,20 +10,23 @@ jobs:
         configuration: ["Debug", "Release"]
     steps:
     - name: Define Build Options
-      shell: python
+      shell: bash
       run: |
-        if "${{ matrix.configuration }}" == "Debug":
-          print('Configuring for Debug')
-          print('::set-env name=BUILD_PARAM::')
-          print('::set-env name=ARTIFACT_NAME::xqemu-debug')
-        else:
-          print('Configuring for Release')
-          print('::set-env name=BUILD_PARAM::--release')
-          print('::set-env name=ARTIFACT_NAME::xqemu-release')
+        if [[ "${{ matrix.configuration }}" == "Debug" ]]; then
+          echo "Configuring for Debug"
+          echo "BUILD_PARAM=" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=xqemu-debug" >> $GITHUB_ENV
+        else
+          echo "Configuring for Release"
+          echo "BUILD_PARAM=--release" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=xqemu-release" >> $GITHUB_ENV
+        fi
+
     - name: Clone Tree
-      uses: actions/checkout@v1
+      uses: actions/checkout@v4
       with:
         fetch-depth: 1
+
     - name: Install Dependencies
       run: |
         echo "Downloading MSYS2 environment..."
@@ -32,13 +35,15 @@ jobs:
         7z x -y msys64.7z "-oC:\tools\"
         echo "Updating MSYS2 environment..."
         C:\tools\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm"
+
     - name: Initialize Compiler Cache
       id: cache
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: C:\tools\msys64\tmp\xqemu-ccache
         key: cache-${{ runner.os }}-${{ matrix.configuration }}-${{ github.sha }}
         restore-keys: cache-${{ runner.os }}-${{ matrix.configuration }}-
+
     - name: Compile
       run: |
         C:\tools\msys64\usr\bin\bash.exe -lc @"
@@ -51,8 +56,9 @@ jobs:
         echo -e '\nCompiler Cache Stats:'
         ccache -s -c
         "@
+
     - name: Upload Build Artifact
-      uses: actions/upload-artifact@master
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{env.ARTIFACT_NAME}}
+        name: ${{ env.ARTIFACT_NAME }}
         path: dist
